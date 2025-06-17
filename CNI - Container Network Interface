@@ -1,0 +1,146 @@
+#Popular Pod Network Solutions for Kubernetes:
+
+| CNI Plugin      | Features                        | Suitable For                  | Example Command                 |
+| --------------- | ------------------------------- | ----------------------------- | ------------------------------- |
+| **Flannel**     | Simple, lightweight             | Small/medium clusters         | `kubectl apply -f flannel.yaml` |
+| **Calico**      | Advanced, network policies, BGP | Medium/large clusters, secure | `kubectl apply -f calico.yaml`  |
+| **Weave Net**   | Automatic encryption, simple    | Easy setup, encryption needed | `kubectl apply -f weave.yaml`   |
+| **Cilium**      | High security, eBPF powered     | Performance-critical systems  | `kubectl apply -f cilium.yaml`  |
+| **Canal**       | Calico + Flannel hybrid         | Balanced performance & ease   | Custom YAML deployment          |
+| **Kube-Router** | Native IP routing, firewalling  | Lightweight, network focused  | Custom YAML deployment          |
+
+#How Pod Networks Work:
+
+They assign unique IPs to each pod.
+
+Enable communication across nodes.
+
+Ensure Kubernetes services (ClusterIP, NodePort, etc.) can properly route traffic.
+
+
+#✅ Step-by-Step Deployment Guide for Cilium:
+
+Cilium uses eBPF (Extended Berkeley Packet Filter) for high-performance networking and security.
+It’s a modern and production-grade choice.
+
+#🎯 Prerequisites:
+
+✔️ You have a working Kubernetes cluster (kubeadm installed)
+✔️ All nodes can communicate (ping works)
+✔️ Pods and services are not yet deployed (fresh network setup recommended)
+
+
+#🛠 Step 1: Install cilium-cli:
+
+# On your master node
+curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz{,.sha256sum}
+sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
+sudo tar xzvf cilium-linux-amd64.tar.gz -C /usr/local/bin
+cilium version
+
+
+#🛠 Step 2: Install Helm (Required for Cilium Install)
+
+>> curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+helm version
+
+
+#Install Cilium on Cluster:
+
+cilium install
+
+
+#Validate the Installation:
+
+cilium status
+
+
+#(Optional but Recommended) Enable Hubble (Service Visibility)
+
+cilium hubble enable
+
+
+#Install Hubble UI
+
+cilium hubble ui
+
+
+#Deploy a Test Pod to Verify
+
+kubectl create deployment nginx --image=nginx
+kubectl expose deployment nginx --port=80 --type=NodePort
+kubectl get svc nginx
+
+
+===================================================
+#Full Shell Script to Automate Cilium Installation:
+===================================================
+
+
+nano install_cilium.sh
+
+>> 
+
+# =====================================
+# Kubernetes Cilium CNI Automated Setup
+# =====================================
+
+set -e
+
+echo "🔍 Step 1: Installing cilium-cli..."
+curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz{,.sha256sum}
+sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
+sudo tar xzvf cilium-linux-amd64.tar.gz -C /usr/local/bin
+rm -f cilium-linux-amd64.tar.gz cilium-linux-amd64.tar.gz.sha256sum
+
+echo "✅ cilium-cli installed successfully."
+
+echo "🔍 Step 2: Installing Helm..."
+curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+echo "✅ Helm installed successfully."
+
+echo "🚀 Step 3: Deploying Cilium to the Kubernetes cluster..."
+cilium install
+
+echo "⏳ Waiting for Cilium to be ready..."
+cilium status --wait
+
+echo "✅ Cilium installed and running!"
+
+echo "🔍 Step 4: Enabling Hubble observability..."
+cilium hubble enable
+
+echo "🚀 Step 5: Deploying Hubble UI..."
+cilium hubble ui --wait
+
+echo "✅ Hubble UI is now available via port-forwarding."
+
+echo "🚀 Step 6: Starting Hubble UI port-forward in the background..."
+nohup cilium hubble port-forward &>/dev/null &
+
+echo "🎉 Setup Complete! Access Hubble UI at: http://localhost:12000"
+
+echo "📦 Deploying test Nginx pod..."
+kubectl create deployment nginx --image=nginx --replicas=2
+kubectl expose deployment nginx --port=80 --type=NodePort
+
+echo "⏳ Waiting for Nginx pod to be ready..."
+kubectl wait --for=condition=available --timeout=120s deployment/nginx
+
+echo "✅ Nginx deployment is ready."
+
+echo "🌐 Retrieve NodePort for testing:"
+kubectl get svc nginx -o wide
+
+echo "🎯 Test Access: curl <Node-IP>:<NodePort> from any machine that can reach the node."
+
+echo "✅ Cluster Networking, Hubble, and Test Pod deployed successfully."
+
+>> 
+
+chmod +x install_cilium.sh
+
+./install_cilium.sh
+
+
+

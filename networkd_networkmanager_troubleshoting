@@ -1,0 +1,134 @@
+#When we configure static IP manually using Netplan, Ubuntu sometimes:
+
+Detaches the interface from NetworkManager control and marks it as "unmanaged."
+
+This happens because by default Netplan can be using networkd backend instead of NetworkManager.
+
+When the interface is unmanaged, we lose GUI control, and the internet connection is broken.
+
+#There are two ways to solve this properly:
+
+Use the right Netplan backend for NetworkManager (Recommended).
+
+Or manually configure the network via networkd without depending on NetworkManager GUI.
+
+#How to Check Current Renderer
+
+cat /etc/netplan/*.yaml
+
+
+#Solution 1: Tell Netplan to Use NetworkManager (Recommended)
+🔧 Step 1: Edit Netplan YAML
+
+sudo nano /etc/netplan/01-netcfg.yaml
+
+>>
+
+network:
+  version: 2
+  renderer: NetworkManager
+  ethernets:
+    enp0s3:   # Your actual interface name
+      dhcp4: no
+      addresses:
+        - 192.168.0.101/24
+      gateway4: 192.168.0.1
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+
+
+sudo netplan apply
+
+sudo systemctl restart NetworkManager
+
+#By setting renderer: NetworkManager, you are telling Ubuntu:
+
+“Let NetworkManager manage this interface, even with static IP.”
+
+#Solution 2: Use networkd Fully (Headless Servers)
+If you don’t need GUI control (common in servers), you can let systemd-networkd handle everything.
+
+>>
+
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp0s3:
+      dhcp4: no
+      addresses:
+        - 192.168.0.101/24
+      gateway4: 192.168.0.1
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+
+sudo netplan apply
+sudo systemctl restart systemd-networkd
+
+
+#practical automation script that you can use to automatically configure static IPs for multiple Ubuntu 22.04 VMs using netplan.
+
+This will:
+✅ Assign unique static IPs per VM
+✅ Use the NetworkManager renderer (so GUI control will work)
+✅ Automatically apply the configuration
+
+#create a bash file (example: set_static_ip.sh)
+
+nano set_static_ip.sh
+
+>>
+
+#!/bin/bash
+
+# =========================
+# VM Static IP Automation
+# =========================
+
+# Define your VM interface (adjust as needed)
+INTERFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^enp|^eth' | head -n1)
+
+# Base Network Configuration
+SUBNET="192.168.0"   # Change to match your local network
+GATEWAY="192.168.0.1"
+DNS1="8.8.8.8"
+DNS2="8.8.4.4"
+
+# Ask for last octet for IP assignment
+read -p "Enter the last octet for this VM's static IP (example: 101): " LAST_OCTET
+
+# Full static IP
+STATIC_IP="${SUBNET}.${LAST_OCTET}"
+
+# Generate netplan YAML file
+cat <<EOF | sudo tee /etc/netplan/01-static-ip.yaml
+network:
+  version: 2
+  renderer: NetworkManager
+  ethernets:
+    ${INTERFACE}:
+      addresses:
+        - ${STATIC_IP}/24
+      gateway4: ${GATEWAY}
+      nameservers:
+        addresses: [${DNS1}, ${DNS2}]
+EOF
+
+# Apply configuration
+sudo netplan apply
+sudo systemctl restart NetworkManager
+
+# Display result
+echo "✅ Static IP configuration complete!"
+echo "Assigned IP: ${STATIC_IP} on interface: ${INTERFACE}"
+ip a | grep ${INTERFACE}
+
+#Make it executable and run the script:
+
+chmod +x set_static_ip.sh
+
+./set_static_ip.sh
+
+
+
+

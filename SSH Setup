@@ -1,0 +1,27 @@
+#To SSH any on any server or VM's, must be installed SSH on that server's or VM's:
+
+first check the ssh status:
+
+sudo status ssh 
+
+#if not installed yet, then install it:
+
+apt install ssh
+
+#then check the firewall status:
+
+ufw status
+
+#if firewall has no ssh port allowed, then allow ssh port (22):
+
+sudo ufw allow 22/tcp
+
+#Then reload firewall:
+
+sudo ufw reload
+
+#Then we can ssh to any server's or vm's that has alread ssh setup.
+
+ssh nahid@192.168.1.201
+
+#it will ask the vm's password, provide it, then we will be login on that vm's

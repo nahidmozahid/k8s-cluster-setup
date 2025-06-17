@@ -1,0 +1,37 @@
+#If a Node is in NotReady status after joined the master node. Here is the solutions:
+
+📌 Step 1: Full Reset on Node02
+
+sudo kubeadm reset -f
+sudo systemctl stop kubelet
+sudo systemctl disable kubelet
+sudo rm -rf /var/lib/kubelet /var/lib/cni /var/lib/kubeadm.yaml /etc/cni /etc/kubernetes /etc/default/kubelet /var/lib/kubelet/kubeadm-flags.env
+sudo ip link delete cni0
+sudo ip link delete flannel.1
+sudo rm -rf /etc/systemd/system/kubelet.service.d
+sudo systemctl daemon-reload
+sudo iptables -F
+
+
+#After running above command, sometimes we will lost out internet connection from the terminal, so to avoid this issue, we can restart the vm manually. And after then reboot the vm from terminal, using below command:
+
+sudo reboot
+
+#📌 Step 2: After Reboot - Confirm kubelet is Stopped
+
+ps aux | grep kubelet
+sudo ss -tnlp | grep 10250
+
+>> 👉 You should not see kubelet running.
+
+#📌 Step 3: Run kubeadm join (DO NOT START kubelet manually)
+
+kubeadm join 192.168.1.111:6443 --token <your-token> --discovery-token-ca-cert-hash sha256:<your-hash>
+
+>> 👉 This will automatically start the kubelet with proper bootstrap configuration.
+
+#📌 Step 4: After Successful Join, Enable kubelet.
+
+sudo systemctl enable kubelet
+
+

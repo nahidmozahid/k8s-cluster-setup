@@ -1,0 +1,68 @@
+#Check IPv6 Binding Behavior
+
+cat /proc/sys/net/ipv6/bindv6only
+
+>> 0 ➜ Dual binding is enabled (should accept IPv4)
+
+1 ➜ IPv6-only binding (this is your problem)
+
+
+#Why is the Master Node NotReady?
+
+The most common reasons:
+
+    ✅ Network Plugin Not Working or Not Fully Applied (Most likely in your case)
+
+    ❌ Swap not disabled
+
+    ❌ kubelet not healthy
+
+    ❌ Missing container runtime or not properly connected
+
+    ❌ Firewall blocking communication
+    
+
+#Check If Network Plugin Is Deployed
+Make sure kube-flannel is running on both master and worker nodes as we deployed flannel for network plugin. If it’s not running, reapply Flannel:
+
+kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+
+#Disable Swap (If Not Already) On both master and worker nodes:
+
+swapoff -a
+nano /etc/fstab
+
+Comment out any line that has swap.
+
+#sudo systemctl status kubelet (make sure it's active and running)
+
+sudo systemctl status kubelet
+
+#Check if containerd is running:
+
+sudo systemctl status containerd
+
+#Verify Network Ports On both master and worker:
+
+sudo netstat -tulnp | grep 6443
+sudo netstat -tulnp | grep 10250
+
+>> ✅ Port 6443 (API server) should be listening.
+✅ Port 10250 (kubelet) should be listening.
+
+#Check Cluster Events On the master node:
+
+kubectl describe node k8s-master
+kubectl get events --sort-by='.metadata.creationTimestamp'
+
+#Quick command summary:
+
+kubectl get pods -A -o wide
+kubectl describe node k8s-master
+kubectl get events --sort-by='.metadata.creationTimestamp'
+sudo systemctl status kubelet
+sudo systemctl status containerd
+sudo netstat -tulnp | grep 6443
+sudo netstat -tulnp | grep 10250
+crictl info
+
